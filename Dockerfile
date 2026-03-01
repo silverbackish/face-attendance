@@ -1,30 +1,23 @@
-# 1. Use a lightweight Python version
-FROM python:3.10-slim-bullseye
+# 1. Use an image that ALREADY has dlib and face_recognition built in
+FROM animcogn/face_recognition:cpu-latest
 
-# 2. Install the specific system tools needed to build dlib and OpenCV
-# This is where the standard Render build was failing.
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libx11-dev \
-    libgl1-mesa-glx \
-    && rm -rf /var/lib/apt/lists/*
-
-# 3. Set the working directory
+# 2. Set the working directory
 WORKDIR /app
 
-# 4. Copy and install requirements 
-# We use --no-cache-dir to keep the image small
+# 3. Copy your requirements file
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# 4. Remove the heavy packages so Render doesn't try to build them
+RUN sed -i '/face-recognition/d' requirements.txt && \
+    sed -i '/dlib/d' requirements.txt && \
+    sed -i '/numpy/d' requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 5. Copy the rest of your app's code
 COPY . .
 
-# 6. Tell Render to use port 5000
+# 6. Expose the port
 EXPOSE 5000
 
-# 7. Start command (matches your current setup)
+# 7. Start the app
 CMD ["gunicorn", "app:app", "--workers", "1", "--timeout", "120", "--bind", "0.0.0.0:5000"]

@@ -1,0 +1,37 @@
+# render.yaml
+# This file tells Render.com exactly how to build and run your app.
+# Commit this to GitHub — Render reads it automatically.
+
+services:
+  - type: web
+    name: face-attendance
+    env: python
+    region: singapore    # Closest to India for lower latency
+    plan: free
+
+    # Render runs this once to install dependencies
+    buildCommand: pip install -r requirements.txt
+
+    # Render runs this to start the server
+    # gunicorn is a production-grade server (better than flask's built-in)
+    # --workers 1 is important — APScheduler must run in only one process
+    # --timeout 120 gives face_recognition enough time to process images
+    startCommand: gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
+
+    # Environment variables — fill these in on the Render dashboard
+    # (never put real values here — this file goes on GitHub!)
+    envVars:
+      - key: SUPABASE_URL
+        sync: false          # "sync: false" = Render will ask you to fill this in
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MAIL_EMAIL
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: TEACHER_EMAIL
+        sync: false
+      - key: REPORT_HOUR_UTC
+        value: "12"          # 12:30 UTC = 6:00pm IST
+      - key: REPORT_MINUTE_UTC
+        value: "30"

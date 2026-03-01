@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}FaceAttend — Attendance Records{% endblock %}
+
+{% block styles %}
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { padding: 10px 12px; text-align: left; background: var(--bg); color: var(--muted);
+       font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { background: #0b2518; color: var(--green); border: 1px solid var(--green);
+           padding: 2px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+{% endblock %}
+
+{% block content %}
+
+<h1>Attendance Records</h1>
+<p style="margin: 6px 0 24px;">Filter by date or send today's report by email.</p>
+
+{# --- Date filter --- #}
+<div class="card" style="padding: 16px;">
+  <form method="GET" action="/attendance" style="display:flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <select name="date" onchange="this.form.submit()" style="flex: 1;">
+      <option value="">— All dates —</option>
+      {% for d in dates %}
+        <option value="{{ d }}" {% if d == selected_date %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+    {% if selected_date %}
+      <a href="/attendance" style="color: var(--muted); font-size: 0.85rem; white-space: nowrap;">✕ Clear</a>
+    {% endif %}
+  </form>
+  <p style="margin-top: 10px; font-size: 0.85rem; color: var(--muted);">
+    {{ records | length }} record{{ 's' if records | length != 1 }}
+    {% if selected_date %}for {{ selected_date }}{% endif %}
+  </p>
+</div>
+
+{# --- Records table --- #}
+{% if records %}
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Date</th><th>Time</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td style="color: var(--muted);">{{ loop.index }}</td>
+          <td><strong>{{ r.student_name }}</strong></td>
+          <td>{{ r.date }}</td>
+          <td>{{ r.time }}</td>
+          <td><span class="badge">Present</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="card" style="text-align:center; padding: 48px;">
+    <div style="font-size: 2.5rem; margin-bottom: 12px;">📭</div>
+    <p>No records found{% if selected_date %} for {{ selected_date }}{% endif %}.</p>
+  </div>
+{% endif %}
+
+{# --- Email section --- #}
+<div class="card" style="margin-top: 8px;">
+  <h2>📧 Email Today's Report</h2>
+  <p style="margin-bottom: 16px;">
+    Send today's attendance as a CSV attachment to any email address.
+    Auto-report is scheduled daily at
+    <strong style="color: var(--text);">
+      {{ '%02d' | format(report_hour_utc) }}:{{ '%02d' | format(report_minute_utc) }} UTC
+      ({{ (report_hour_utc + 5) % 24 }}:{{ '%02d' | format((report_minute_utc + 30) % 60) }} IST)
+    </strong>.
+  </p>
+
+  <div id="email-msg"></div>
+
+  <label>Teacher Email</label>
+  <input type="email" id="teacher-email"
+         placeholder="teacher@school.edu"
+         value="{{ request.args.get('email', '') }}"/>
+
+  <button class="btn btn-green" onclick="sendReport()" id="send-btn">
+    Send Report Now
+  </button>
+</div>
+
+<script>
+  async function sendReport() {
+    const email = document.getElementById('teacher-email').value.trim();
+    const msgEl = document.getElementById('email-msg');
+    const btn   = document.getElementById('send-btn');
+
+    if (!email) {
+      msgEl.innerHTML = '<div class="alert alert-error">Please enter an email address.</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    msgEl.innerHTML = '';
+
+    // FormData lets us send form fields without a full page reload
+    const form = new FormData();
+    form.append('teacher_email', email);
+
+    try {
+      const res = await fetch('/send_email', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (data.success) {
+        msgEl.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
+      } else {
+        msgEl.innerHTML = `<div class="alert alert-error">❌ ${data.message}</div>`;
+      }
+    } catch (err) {
+      msgEl.innerHTML = '<div class="alert alert-error">Network error. Try again.</div>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Send Report Now';
+  }
+</script>
+
+{% endblock %}

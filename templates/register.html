@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}FaceAttend — Register{% endblock %}
+
+{% block styles %}
+  #camera-area { position: relative; width: 100%; aspect-ratio: 3/4; background: #000; border-radius: 12px; overflow: hidden; }
+  #video        { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } {# Mirror front camera #}
+  #canvas       { display: none; }
+  #preview      { display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+  #cam-label    { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+                  background: rgba(0,0,0,0.55); color: #fff; font-size: 0.75rem;
+                  padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  #status-msg   { min-height: 48px; }
+{% endblock %}
+
+{% block content %}
+
+<h1>Register Your Face</h1>
+<p style="margin: 6px 0 22px;">Do this once. Your face will be recognised automatically every day.</p>
+
+<div id="status-msg"></div>
+
+<div class="card" style="padding: 16px;">
+
+  {# Step 1: Name #}
+  <label>Your Full Name</label>
+  <input type="text" id="name-input" placeholder="e.g. Priyanshu Jha" autocomplete="name"/>
+
+  {# Step 2: Camera selfie #}
+  <label style="margin-top: 20px;">Your Selfie</label>
+
+  <div id="camera-area">
+    <video id="video" autoplay playsinline muted></video>
+    <img id="preview" alt="Your selfie"/>
+    <span id="cam-label">Front camera</span>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <button class="btn btn-muted" id="retake-btn" style="display:none;" onclick="retake()">
+    🔄 Retake Photo
+  </button>
+
+  <button class="btn btn-green" id="snap-btn" onclick="snapPhoto()" style="margin-top: 14px;">
+    📸 Take Selfie
+  </button>
+
+  <button class="btn btn-green" id="register-btn" style="display:none;" onclick="submitRegistration()">
+    ✅ Register Me
+  </button>
+
+</div>
+
+<script>
+  const video    = document.getElementById('video');
+  const canvas   = document.getElementById('canvas');
+  const preview  = document.getElementById('preview');
+  const snapBtn  = document.getElementById('snap-btn');
+  const retakeBtn= document.getElementById('retake-btn');
+  const regBtn   = document.getElementById('register-btn');
+  const statusEl = document.getElementById('status-msg');
+
+  let capturedImage = null;
+
+  // ---- Start the front-facing camera when page loads ----
+  // getUserMedia() is the browser API for camera access.
+  // It returns a Promise — we use async/await for clean code.
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 853 } },
+        audio: false
+      });
+      video.srcObject = stream;
+    } catch (err) {
+      showStatus('Could not access camera: ' + err.message + '. Make sure you allowed camera permission.', 'error');
+    }
+  }
+
+  // ---- Capture current video frame as a JPEG base64 string ----
+  function snapPhoto() {
+    if (!video.srcObject) { showStatus('Camera not ready yet.', 'error'); return; }
+
+    // Draw the current video frame onto the hidden canvas
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Mirror the image back (we mirrored the video for UX, undo for the actual capture)
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
+
+    // toDataURL() converts the canvas to a base64 JPEG string
+    // "image/jpeg" and 0.85 = JPEG format at 85% quality
+    capturedImage = canvas.toDataURL('image/jpeg', 0.85);
+
+    // Show preview, hide video
+    preview.src = capturedImage;
+    preview.style.display = 'block';
+    video.style.display   = 'none';
+
+    snapBtn.style.display   = 'none';
+    retakeBtn.style.display = 'block';
+    regBtn.style.display    = 'block';
+    showStatus('Photo taken! If it looks good, tap Register.', 'info');
+  }
+
+  function retake() {
+    capturedImage = null;
+    preview.style.display = 'none';
+    video.style.display   = 'block';
+    snapBtn.style.display   = 'block';
+    retakeBtn.style.display = 'none';
+    regBtn.style.display    = 'none';
+    clearStatus();
+  }
+
+  // ---- Submit name + photo to Flask ----
+  async function submitRegistration() {
+    const name = document.getElementById('name-input').value.trim();
+
+    if (!name) { showStatus('Please enter your name first.', 'error'); return; }
+    if (!capturedImage) { showStatus('Please take a selfie first.', 'error'); return; }
+
+    regBtn.disabled = true;
+    regBtn.textContent = 'Registering...';
+
+    try {
+      // fetch() sends an HTTP POST to Flask with a JSON body
+      const response = await fetch('/register_face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, image: capturedImage })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showStatus(result.message + ' You can now mark attendance from the home page.', 'success');
+        regBtn.textContent  = '✅ Registered!';
+        retakeBtn.style.display = 'none';
+      } else {
+        showStatus(result.message, 'error');
+        regBtn.disabled     = false;
+        regBtn.textContent  = '✅ Register Me';
+      }
+    } catch (err) {
+      showStatus('Network error. Please try again.', 'error');
+      regBtn.disabled = false;
+      regBtn.textContent = '✅ Register Me';
+    }
+  }
+
+  function showStatus(msg, type) {
+    const cls = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info';
+    statusEl.innerHTML = `<div class="alert ${cls}">${msg}</div>`;
+  }
+  function clearStatus() { statusEl.innerHTML = ''; }
+
+  startCamera();
+</script>
+
+{% endblock %}

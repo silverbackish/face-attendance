@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>{% block title %}FaceAttend{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0f18;
+      --surface: #161928;
+      --border:  #252840;
+      --green:   #22d87a;
+      --blue:    #4fa3f7;
+      --red:     #f75a5a;
+      --text:    #e8eaf0;
+      --muted:   #7a82a0;
+      --radius:  14px;
+    }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      /* Prevent horizontal scroll on mobile */
+      overflow-x: hidden;
+    }
+
+    /* --- Navbar --- */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--green);
+      text-decoration: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-left: 18px;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    /* On mobile, condense nav links */
+    @media (max-width: 480px) {
+      .nav-links a { margin-left: 12px; font-size: 0.8rem; }
+    }
+
+    /* --- Page container --- */
+    .page {
+      max-width: 500px;       /* Comfortable on both mobile and desktop */
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+
+    /* --- Card --- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    h1 { font-size: 1.7rem; font-weight: 800; margin-bottom: 6px; }
+    h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; }
+    p  { color: var(--muted); line-height: 1.6; font-size: 0.95rem; }
+
+    /* --- Buttons — big enough to tap on phone --- */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.1s;
+      margin-top: 12px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:hover  { opacity: 0.88; }
+
+    .btn-green  { background: var(--green);  color: #05130d; }
+    .btn-blue   { background: var(--blue);   color: #040f24; }
+    .btn-muted  { background: var(--border); color: var(--muted); }
+
+    /* --- Alerts --- */
+    .alert {
+      border-radius: 10px;
+      padding: 13px 16px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .alert-success { background: #0b2518; border: 1px solid var(--green); color: #7eedb5; }
+    .alert-error   { background: #250b0b; border: 1px solid var(--red);   color: #f5a0a0; }
+    .alert-info    { background: #0b1525; border: 1px solid var(--blue);  color: #9ecbf7; }
+
+    /* --- Form inputs --- */
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    select {
+      width: 100%;
+      padding: 13px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--green);
+    }
+
+    {% block styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/">🎓 FaceAttend</a>
+  <div class="nav-links">
+    <a href="/register">Register</a>
+    <a href="/mark">Attendance</a>
+    <a href="/attendance">Records</a>
+  </div>
+</nav>
+
+<div class="page">
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

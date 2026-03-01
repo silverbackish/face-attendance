@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}FaceAttend — Home{% endblock %}
+
+{% block content %}
+
+<div style="text-align:center; padding: 20px 0 10px;">
+  <div style="font-size: 3.5rem; margin-bottom: 10px;">🎓</div>
+  <h1>FaceAttend</h1>
+  <p style="margin-top: 8px;">Automatic attendance using your face. No sign-in sheets.</p>
+</div>
+
+<div class="card" style="margin-top: 28px; border-color: #1d3d28;">
+  <div style="font-size: 1.8rem; margin-bottom: 8px;">👤</div>
+  <h2>First time here?</h2>
+  <p>Register your face once. It takes under a minute.</p>
+  <a href="/register" class="btn btn-green">Register My Face</a>
+</div>
+
+<div class="card" style="border-color: #1a2c45;">
+  <div style="font-size: 1.8rem; margin-bottom: 8px;">✅</div>
+  <h2>Already registered?</h2>
+  <p>Take a quick selfie to mark your attendance for today.</p>
+  <a href="/mark" class="btn btn-blue">Mark My Attendance</a>
+</div>
+
+<div style="text-align:center; margin-top: 32px;">
+  <a href="/attendance" style="color: var(--muted); font-size: 0.85rem; text-decoration: none;">
+    📋 View attendance records →
+  </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}FaceAttend — Mark Attendance{% endblock %}
+
+{% block styles %}
+  #camera-area { position: relative; width: 100%; aspect-ratio: 3/4; background: #000; border-radius: 12px; overflow: hidden; }
+  #video   { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #canvas  { display: none; }
+  #preview { display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+
+  #result-screen {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  #result-icon   { font-size: 5rem; margin-bottom: 16px; }
+  #result-name   { font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; }
+  #result-msg    { color: var(--muted); font-size: 0.95rem; margin-bottom: 28px; }
+{% endblock %}
+
+{% block content %}
+
+<h1>Mark Attendance</h1>
+<p style="margin: 6px 0 22px;">Take a selfie to record your attendance for today.</p>
+
+<div id="status-msg"></div>
+
+{# --- Camera Phase --- #}
+<div id="camera-phase">
+  <div class="card" style="padding: 16px;">
+    <div id="camera-area">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="preview" alt="Selfie preview"/>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <button class="btn btn-blue" id="snap-btn" onclick="snapAndSubmit()" style="margin-top: 14px;">
+      📸 Take Attendance Selfie
+    </button>
+
+    <button class="btn btn-muted" id="retry-btn" style="display:none;" onclick="retake()">
+      🔄 Try Again
+    </button>
+  </div>
+</div>
+
+{# --- Result Phase (shown after server responds) --- #}
+<div id="result-screen">
+  <div id="result-icon">⏳</div>
+  <div id="result-name"></div>
+  <div id="result-msg"></div>
+  <a href="/mark" class="btn btn-blue" style="display:inline-block; width: auto; padding: 13px 32px;">
+    Mark Again
+  </a>
+</div>
+
+<script>
+  const video    = document.getElementById('video');
+  const canvas   = document.getElementById('canvas');
+  const preview  = document.getElementById('preview');
+  const snapBtn  = document.getElementById('snap-btn');
+  const retryBtn = document.getElementById('retry-btn');
+  const statusEl = document.getElementById('status-msg');
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 } },
+        audio: false
+      });
+      video.srcObject = stream;
+    } catch (err) {
+      showStatus('Camera access denied. Please allow camera and refresh.', 'error');
+      snapBtn.disabled = true;
+    }
+  }
+
+  async function snapAndSubmit() {
+    if (!video.srcObject) { showStatus('Camera not ready.', 'error'); return; }
+
+    snapBtn.disabled = true;
+    snapBtn.textContent = 'Processing...';
+
+    // Capture frame
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL('image/jpeg', 0.85);
+
+    // Show the captured preview
+    preview.src = imageData;
+    preview.style.display = 'block';
+    video.style.display   = 'none';
+
+    // Send to server
+    try {
+      const response = await fetch('/take_attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageData })
+      });
+      const result = await response.json();
+      showResult(result);
+
+    } catch (err) {
+      showStatus('Network error. Check your connection and try again.', 'error');
+      snapBtn.disabled = false;
+      snapBtn.textContent = '📸 Take Attendance Selfie';
+      retryBtn.style.display = 'block';
+    }
+  }
+
+  function showResult(result) {
+    // Hide the camera card, show the result screen
+    document.getElementById('camera-phase').style.display = 'none';
+    const rs = document.getElementById('result-screen');
+    rs.style.display = 'block';
+
+    if (result.success) {
+      document.getElementById('result-icon').textContent = '✅';
+      document.getElementById('result-name').textContent = `Welcome, ${result.name}!`;
+      document.getElementById('result-msg').textContent  = result.message;
+      rs.style.background = '#0b2518';
+      rs.style.borderRadius = '14px';
+    } else {
+      document.getElementById('result-icon').textContent = result.name ? '🔁' : '❓';
+      document.getElementById('result-name').textContent = result.name
+        ? `Hi ${result.name} — Already Marked`
+        : 'Not Recognised';
+      document.getElementById('result-msg').textContent = result.message;
+      rs.style.background = result.name ? '#1a1d28' : '#250b0b';
+      rs.style.borderRadius = '14px';
+    }
+  }
+
+  function retake() {
+    preview.style.display = 'none';
+    video.style.display   = 'block';
+    snapBtn.disabled    = false;
+    snapBtn.textContent = '📸 Take Attendance Selfie';
+    retryBtn.style.display = 'none';
+    clearStatus();
+  }
+
+  function showStatus(msg, type) {
+    const cls = type === 'error' ? 'alert-error' : 'alert-info';
+    statusEl.innerHTML = `<div class="alert ${cls}">${msg}</div>`;
+  }
+  function clearStatus() { statusEl.innerHTML = ''; }
+
+  startCamera();
+</script>
+
+{% endblock %}

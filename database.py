@@ -7,15 +7,19 @@ from datetime import datetime, date
 from typing import Optional, List, Dict  # Required for Python 3.8 compatibility
 
 def get_client() -> Client:
+    """Creates and returns a Supabase client using environment variables."""
     url = os.environ.get('SUPABASE_URL')
     key = os.environ.get('SUPABASE_KEY')
     if not url or not key:
         raise RuntimeError("SUPABASE_URL and SUPABASE_KEY environment variables are not set.")
     return create_client(url, key)
 
-# --- STUDENTS ---
+# -------------------------------------------------------
+# STUDENTS
+# -------------------------------------------------------
 
 def load_known_faces():
+    """Loads all students from the database for recognition."""
     supabase = get_client()
     response = supabase.table('students').select('id, name, face_encoding').execute()
 
@@ -33,6 +37,7 @@ def load_known_faces():
     return known_encodings, known_names, known_ids
 
 def register_student(name: str, face_encoding: np.ndarray) -> bool:
+    """Inserts or updates a student record (upsert)."""
     supabase = get_client()
     encoding_json = json.dumps(face_encoding.tolist())
     try:
@@ -45,21 +50,25 @@ def register_student(name: str, face_encoding: np.ndarray) -> bool:
         print(f"Error registering student: {e}")
         return False
 
-# FIXED: Changed 'str | None' to 'Optional[str]'
 def get_student_id(name: str) -> Optional[str]:
+    """Looks up a student's UUID by their name."""
     supabase = get_client()
     result = supabase.table('students').select('id').eq('name', name).execute()
     if result.data:
         return result.data[0]['id']
     return None
 
-# --- ATTENDANCE ---
+# -------------------------------------------------------
+# ATTENDANCE
+# -------------------------------------------------------
 
 def mark_attendance(name: str, student_id: str) -> Dict:
+    """Records attendance for a specific student ID."""
     supabase = get_client()
     today_str = date.today().isoformat()
     time_str = datetime.now().strftime('%H:%M:%S')
 
+    # Double-check if already marked today
     existing = (supabase.table('attendance')
                 .select('id')
                 .eq('student_id', student_id)
@@ -79,9 +88,10 @@ def mark_attendance(name: str, student_id: str) -> Dict:
     except Exception as e:
         return {'success': False, 'message': f'Database error: {str(e)}'}
 
-# FIXED: Changed 'filter_date: str = None' to 'Optional[str]'
 def get_attendance(filter_date: Optional[str] = None) -> List:
+    """Fetches records. Added safety check to prevent Internal Server Errors."""
     supabase = get_client()
+
     query = (supabase.table('attendance')
              .select('date, time, students(name)')
              .order('date', desc=True)
@@ -94,18 +104,26 @@ def get_attendance(filter_date: Optional[str] = None) -> List:
 
     records = []
     for row in result.data:
+        # SAFETY CHECK: If the student was deleted, row['students'] will be None.
+        # This prevents the "Internal Server Error" when accessing ['name'].
+        student_info = row.get('students')
+        student_name = student_info['name'] if student_info else "Unknown Student"
+
         records.append({
-            'student_name': row['students']['name'],
+            'student_name': student_name,
             'date': str(row['date']),
             'time': str(row['time'])[:8]
         })
+
     return records
 
 def get_all_dates() -> List:
+    """Returns a sorted list of unique dates."""
     supabase = get_client()
     result = supabase.table('attendance').select('date').execute()
     dates = sorted({str(row['date']) for row in result.data}, reverse=True)
     return dates
 
 def get_today_attendance() -> List:
+    """Returns today's records for the email report."""
     return get_attendance(filter_date=date.today().isoformat())
